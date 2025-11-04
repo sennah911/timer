@@ -216,13 +216,16 @@ class TimerManager {
 // MARK: - Commands
 
 func startTimer(name: String, manager: TimerManager) {
-    var timer = manager.loadTimer(name: name) ?? Timer(startTime: nil, stopTime: nil, tags: [])
-    
-    if timer.isRunning {
-        print("⚠️  Timer '\(name)' is already running!")
+    if let existingTimer = manager.loadTimer(name: name) {
+        if existingTimer.isRunning {
+            print("⚠️  Timer '\(name)' is already running!")
+        } else {
+            print("⚠️  Timer '\(name)' already exists. Use 'timer show \(name)' to inspect it or delete the file before starting a new timer with the same name.")
+        }
         return
     }
     
+    var timer = Timer(startTime: nil, stopTime: nil, tags: [])
     timer.startTime = Date()
     timer.stopTime = nil
     
