@@ -252,6 +252,50 @@ class TimerManager {
             .map { $0.deletingPathExtension().lastPathComponent }
             .sorted()
     }
+    
+    func nextSplitName(from currentName: String) -> String {
+        let base = TimerManager.baseNameForSplit(currentName)
+        var maxSuffix = 0
+        
+        for name in listTimers() {
+            if name == base {
+                maxSuffix = max(maxSuffix, 0)
+                continue
+            }
+            
+            if let suffix = TimerManager.numericSuffix(in: name, base: base) {
+                maxSuffix = max(maxSuffix, suffix)
+            }
+        }
+        
+        return "\(base)-\(maxSuffix + 1)"
+    }
+    
+    private static func baseNameForSplit(_ name: String) -> String {
+        var base = name
+        let pattern = "-[0-9]+$"
+        
+        while let range = base.range(of: pattern, options: .regularExpression) {
+            let candidate = String(base[..<range.lowerBound])
+            if candidate.isEmpty {
+                break
+            }
+            base = candidate
+        }
+        
+        return base.isEmpty ? name : base
+    }
+    
+    private static func numericSuffix(in name: String, base: String) -> Int? {
+        guard name.hasPrefix(base + "-") else {
+            return nil
+        }
+        let suffix = name.dropFirst(base.count + 1)
+        guard !suffix.isEmpty else {
+            return nil
+        }
+        return Int(suffix)
+    }
 }
 
 // MARK: - Commands
@@ -298,6 +342,49 @@ func stopTimer(name: String, manager: TimerManager) {
         }
     } catch {
         print("❌ Error saving timer: \(error)")
+    }
+}
+
+func splitTimer(name: String, newName: String?, manager: TimerManager) {
+    guard var timer = manager.loadTimer(name: name) else {
+        print("❌ Timer '\(name)' not found!")
+        return
+    }
+    
+    if !timer.isRunning {
+        print("⚠️  Timer '\(name)' is not running!")
+        return
+    }
+    
+    let generatedName: String
+    if let supplied = newName?.trimmingCharacters(in: .whitespacesAndNewlines), !supplied.isEmpty {
+        generatedName = supplied
+    } else {
+        generatedName = manager.nextSplitName(from: name)
+    }
+    
+    if manager.loadTimer(name: generatedName) != nil {
+        print("⚠️  Timer '\(generatedName)' already exists! Choose a different name or specify one manually.")
+        return
+    }
+    
+    let splitDate = Date()
+    timer.stopTime = splitDate
+    
+    do {
+        try manager.saveTimer(name: name, timer: timer)
+    } catch {
+        print("❌ Error saving timer: \(error)")
+        return
+    }
+    
+    var newTimer = Timer(startTime: splitDate, stopTime: nil, tags: timer.tags)
+    
+    do {
+        try manager.saveTimer(name: generatedName, timer: newTimer)
+        print("✅ Split timer '\(name)' into '\(generatedName)' at \(manager.formatDate(splitDate))")
+    } catch {
+        print("❌ Error creating timer '\(generatedName)': \(error)")
     }
 }
 
@@ -445,6 +532,7 @@ func printUsage() {
     Usage:
         timer [--directory <path>] start <name>               Start a timer
         timer [--directory <path>] stop <name>                Stop a running timer
+        timer [--directory <path>] split <name> [new_name]    Stop one timer and start another
         timer [--directory <path>] tag <name> <tag>           Add a tag to a timer
         timer [--directory <path>] remove-tag <name> <tag>    Remove a tag from a timer
         timer [--directory <path>] set-start <name> <ISO8601> Set the start time
@@ -463,6 +551,7 @@ func printUsage() {
     Examples:
         timer start work
         timer stop work
+        timer split work
         timer tag work client-project
         timer remove-tag work client-project
         timer set-start work 2025-11-04T09:00:00Z
@@ -525,6 +614,18 @@ case "stop":
         exit(1)
     }
     stopTimer(name: name, manager: manager)
+    
+case "split":
+    guard let name = remainingArguments.first else {
+        print("❌ Usage: timer [--directory <path>] split <name> [new_name]")
+        exit(1)
+    }
+    if remainingArguments.count > 2 {
+        print("❌ Usage: timer [--directory <path>] split <name> [new_name]")
+        exit(1)
+    }
+    let newName = remainingArguments.count == 2 ? remainingArguments[1] : nil
+    splitTimer(name: name, newName: newName, manager: manager)
     
 case "tag":
     guard remainingArguments.count >= 2 else {

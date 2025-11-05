@@ -10,6 +10,7 @@ A Swift-based command-line tool for managing file-based timers stored as Markdow
 - **Manual time adjustment**: Set custom start/stop times
 - **Duration tracking**: Automatically calculates elapsed time
 - **List view**: See all timers at a glance
+- **Split timers**: Stop a running timer and start the next one instantly
 
 ## Installation
 
@@ -62,6 +63,18 @@ Example:
 ```bash
 timer stop work
 ```
+
+### Split a Timer
+```bash
+timer split <name> [new_name]
+```
+Examples:
+```bash
+timer split work        # stops 'work', starts 'work-1'
+timer split work-1      # stops 'work-1', starts 'work-2'
+timer split work work-b # stops 'work', starts 'work-b'
+```
+If you omit `new_name`, the tool picks the next `<base>-N` name using the numeric suffix from `<name>` (avoids `work-1-1`).
 
 ### Add Tags
 ```bash
