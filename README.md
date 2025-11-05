@@ -77,10 +77,13 @@ timer start meeting
 ### Stop a Timer
 ```bash
 timer stop <name>
+# or
+timer stop --running
 ```
 Example:
 ```bash
 timer stop work
+timer stop --running
 ```
 
 ### Split a Timer
@@ -92,6 +95,7 @@ Examples:
 timer split work        # stops 'work', starts 'work-1'
 timer split work-1      # stops 'work-1', starts 'work-2'
 timer split work work-b # stops 'work', starts 'work-b'
+timer split --running work-next # splits the first running timer into 'work-next'
 ```
 If you omit `new_name`, the tool picks the next `<base>-N` name using the numeric suffix from `<name>` (avoids `work-1-1`).
 
@@ -103,6 +107,7 @@ Example:
 ```bash
 timer tag work client-project
 timer tag work billable
+timer tag --running review # adds tag 'review' to the first running timer
 ```
 
 ### Remove Tags
@@ -227,6 +232,7 @@ For `set-start` and `set-stop` commands, use ISO 8601 format:
 - Use tags to categorize and filter timers for reporting
 - Configure default metadata and notes via `~/.timer/config.json` for consistent new files
 - Add free-form notes after the final `---` in each file; the CLI preserves anything you write there
+- Use `-r/--running` with stop, split, or tag to target the first running timer automatically
 
 ## License
 

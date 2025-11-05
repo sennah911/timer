@@ -364,6 +364,15 @@ class TimerManager {
             .sorted()
     }
     
+    func firstRunningTimerName() -> String? {
+        for name in listTimers() {
+            if let timer = loadTimer(name: name), timer.isRunning {
+                return name
+            }
+        }
+        return nil
+    }
+    
     func nextSplitName(from currentName: String) -> String {
         let base = TimerManager.baseNameForSplit(currentName)
         var maxSuffix = 0
@@ -678,6 +687,7 @@ func printUsage() {
     
     Global options:
         -d, --directory <path>            Override the timers directory for this command
+        -r, --running                     Use the first running timer (stop, split, tag)
     
     Config:
         Default directory is ~/.timer unless overridden in ~/.timer/config.json
@@ -713,6 +723,7 @@ var arguments = Array(rawArgs.dropFirst())
 let workingDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
 var directoryOverride: URL?
 var cleanedArguments: [String] = []
+var useRunningTimer = false
 
 var index = 0
 while index < arguments.count {
@@ -727,6 +738,12 @@ while index < arguments.count {
         let path = arguments[valueIndex]
         directoryOverride = resolveDirectoryPath(path, relativeTo: workingDirectory)
         index += 2
+        continue
+    }
+    
+    if argument == "--running" || argument == "-r" {
+        useRunningTimer = true
+        index += 1
         continue
     }
     
@@ -753,30 +770,67 @@ case "start":
     startTimer(name: name, manager: manager)
     
 case "stop":
-    guard let name = remainingArguments.first else {
-        print("❌ Usage: timer [--directory <path>] stop <name>")
-        exit(1)
+    if useRunningTimer {
+        if !remainingArguments.isEmpty {
+            print("❌ Usage: timer [--directory <path>] stop [--running]")
+            exit(1)
+        }
+        guard let runningName = manager.firstRunningTimerName() else {
+            print("⚠️  No running timers found.")
+            exit(1)
+        }
+        stopTimer(name: runningName, manager: manager)
+    } else {
+        guard let name = remainingArguments.first else {
+            print("❌ Usage: timer [--directory <path>] stop <name>")
+            exit(1)
+        }
+        stopTimer(name: name, manager: manager)
     }
-    stopTimer(name: name, manager: manager)
     
 case "split":
-    guard let name = remainingArguments.first else {
-        print("❌ Usage: timer [--directory <path>] split <name> [new_name]")
-        exit(1)
+    if useRunningTimer {
+        if remainingArguments.count > 1 {
+            print("❌ Usage: timer [--directory <path>] split [--running] [new_name]")
+            exit(1)
+        }
+        guard let runningName = manager.firstRunningTimerName() else {
+            print("⚠️  No running timers found.")
+            exit(1)
+        }
+        let newName = remainingArguments.first
+        splitTimer(name: runningName, newName: newName, manager: manager)
+    } else {
+        guard let name = remainingArguments.first else {
+            print("❌ Usage: timer [--directory <path>] split <name> [new_name]")
+            exit(1)
+        }
+        if remainingArguments.count > 2 {
+            print("❌ Usage: timer [--directory <path>] split <name> [new_name]")
+            exit(1)
+        }
+        let newName = remainingArguments.count == 2 ? remainingArguments[1] : nil
+        splitTimer(name: name, newName: newName, manager: manager)
     }
-    if remainingArguments.count > 2 {
-        print("❌ Usage: timer [--directory <path>] split <name> [new_name]")
-        exit(1)
-    }
-    let newName = remainingArguments.count == 2 ? remainingArguments[1] : nil
-    splitTimer(name: name, newName: newName, manager: manager)
     
 case "tag":
-    guard remainingArguments.count >= 2 else {
-        print("❌ Usage: timer [--directory <path>] tag <name> <tag>")
-        exit(1)
+    if useRunningTimer {
+        guard remainingArguments.count == 1 else {
+            print("❌ Usage: timer [--directory <path>] tag [--running] <tag>")
+            exit(1)
+        }
+        guard let runningName = manager.firstRunningTimerName() else {
+            print("⚠️  No running timers found.")
+            exit(1)
+        }
+        tagTimer(name: runningName, tag: remainingArguments[0], manager: manager)
+    } else {
+        guard remainingArguments.count >= 2 else {
+            print("❌ Usage: timer [--directory <path>] tag <name> <tag>")
+            exit(1)
+        }
+        tagTimer(name: remainingArguments[0], tag: remainingArguments[1], manager: manager)
     }
-    tagTimer(name: remainingArguments[0], tag: remainingArguments[1], manager: manager)
     
 case "remove-tag":
     guard remainingArguments.count >= 2 else {
