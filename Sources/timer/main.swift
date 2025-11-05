@@ -6,6 +6,7 @@ struct Timer: Codable {
     var startTime: Date?
     var stopTime: Date?
     var tags: [String]
+    var customProperties: [String] = []
     
     var isRunning: Bool {
         return startTime != nil && stopTime == nil
@@ -20,6 +21,50 @@ struct Timer: Codable {
 
 struct TimerConfig: Codable {
     var timersDirectory: String?
+    var placeholderNotes: String?
+    var customProperties: [String]?
+    
+    enum CodingKeys: String, CodingKey {
+        case timersDirectory
+        case placeholderNotes = "placeholder_notes"
+        case customProperties = "custom_properties"
+    }
+    
+    init(timersDirectory: String? = nil,
+         placeholderNotes: String? = nil,
+         customProperties: [String]? = nil) {
+        self.timersDirectory = timersDirectory
+        self.placeholderNotes = TimerConfig.normalizePlaceholder(placeholderNotes)
+        if let customProperties {
+            self.customProperties = TimerConfig.normalizeCustomPropertiesArray(customProperties)
+        } else {
+            self.customProperties = nil
+        }
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        timersDirectory = try container.decodeIfPresent(String.self, forKey: .timersDirectory)
+        let placeholder = try container.decodeIfPresent(String.self, forKey: .placeholderNotes)
+        placeholderNotes = TimerConfig.normalizePlaceholder(placeholder)
+        
+        if let propertiesArray = try container.decodeIfPresent([String].self, forKey: .customProperties) {
+            customProperties = TimerConfig.normalizeCustomPropertiesArray(propertiesArray)
+        } else if let propertiesString = try container.decodeIfPresent(String.self, forKey: .customProperties) {
+            customProperties = TimerConfig.normalizeCustomPropertiesString(propertiesString)
+        } else {
+            customProperties = nil
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(timersDirectory, forKey: .timersDirectory)
+        try container.encodeIfPresent(placeholderNotes, forKey: .placeholderNotes)
+        if let customProperties {
+            try container.encode(customProperties, forKey: .customProperties)
+        }
+    }
     
     static func load(fileManager: FileManager = .default) -> TimerConfig? {
         let configDirectory = fileManager.homeDirectoryForCurrentUser
@@ -44,6 +89,32 @@ struct TimerConfig: Codable {
         let base = fileManager.homeDirectoryForCurrentUser
         return resolveDirectoryPath(rawPath, relativeTo: base)
     }
+    
+    func customPropertyLines() -> [String] {
+        return customProperties ?? []
+    }
+    
+    private static func normalizePlaceholder(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let sanitized = value.replacingOccurrences(of: "\r", with: "")
+        return sanitized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : sanitized
+    }
+    
+    private static func normalizeCustomPropertiesArray(_ array: [String]) -> [String]? {
+        let sanitized = sanitizeCustomPropertyLines(array)
+        let hasContent = sanitized.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        return hasContent ? sanitized : nil
+    }
+    
+    private static func normalizeCustomPropertiesString(_ string: String) -> [String]? {
+        let sanitizedString = string.replacingOccurrences(of: "\r", with: "")
+        let lines = sanitizedString.components(separatedBy: .newlines)
+        return normalizeCustomPropertiesArray(lines)
+    }
+    
+    private static func sanitizeCustomPropertyLines(_ lines: [String]) -> [String] {
+        return lines.map { $0.replacingOccurrences(of: "\r", with: "") }
+    }
 }
 
 func resolveDirectoryPath(_ path: String, relativeTo base: URL) -> URL {
@@ -59,18 +130,34 @@ func resolveDirectoryPath(_ path: String, relativeTo base: URL) -> URL {
 
 class TimerManager {
     let timersDirectory: URL
+    let config: TimerConfig
+    private let defaultCustomPropertyLines: [String]
+    private let defaultPlaceholderNotes: String?
     
     init(directoryOverride: URL? = nil) {
         let fileManager = FileManager.default
         let homeDirectory = fileManager.homeDirectoryForCurrentUser
         
-        let configDirectory = TimerConfig.load(fileManager: fileManager)?
+        let loadedConfig = TimerConfig.load(fileManager: fileManager) ?? TimerConfig()
+        config = loadedConfig
+        defaultCustomPropertyLines = loadedConfig.customPropertyLines()
+        defaultPlaceholderNotes = loadedConfig.placeholderNotes
+        
+        let configDirectory = loadedConfig
             .resolvedTimersDirectory(fileManager: fileManager)
         let resolvedDirectory = directoryOverride ?? configDirectory ?? homeDirectory.appendingPathComponent(".timer")
         timersDirectory = resolvedDirectory.standardizedFileURL
         
         // Create timers directory if it doesn't exist
         try? fileManager.createDirectory(at: timersDirectory, withIntermediateDirectories: true)
+    }
+    
+    func templateCustomProperties() -> [String] {
+        return defaultCustomPropertyLines
+    }
+    
+    func templatePlaceholderNotes() -> String? {
+        return defaultPlaceholderNotes
     }
     
     func timerPath(name: String) -> URL {
@@ -86,16 +173,18 @@ class TimerManager {
         return parseMarkdown(content)
     }
     
-    func saveTimer(name: String, timer: Timer) throws {
+    func saveTimer(name: String, timer: Timer, defaultNotes: String? = nil) throws {
         let path = timerPath(name: name)
+        let fileExists = FileManager.default.fileExists(atPath: path.path)
         var existingNotes: String?
         
-        if FileManager.default.fileExists(atPath: path.path),
+        if fileExists,
            let currentContent = try? String(contentsOf: path, encoding: .utf8) {
             existingNotes = TimerManager.extractNotes(from: currentContent)
         }
         
-        let markdown = generateMarkdown(timer: timer, name: name, notes: existingNotes)
+        let notesToPersist = fileExists ? existingNotes : defaultNotes
+        let markdown = generateMarkdown(timer: timer, name: name, notes: notesToPersist)
         try markdown.write(to: path, atomically: true, encoding: .utf8)
     }
     
@@ -170,6 +259,8 @@ class TimerManager {
                 }
                 
                 timer.tags = parsedTags
+            } else {
+                timer.customProperties.append(rawLine)
             }
             
             index += 1
@@ -199,6 +290,12 @@ class TimerManager {
             lines.append("tags:")
             for tag in timer.tags {
                 lines.append("  - \(tag)")
+            }
+        }
+        
+        if !timer.customProperties.isEmpty {
+            for propertyLine in timer.customProperties {
+                lines.append(propertyLine)
             }
         }
         
@@ -343,13 +440,13 @@ func startTimer(name: String, manager: TimerManager) {
         return
     }
     
-    var timer = Timer(startTime: nil, stopTime: nil, tags: [])
-    timer.startTime = Date()
-    timer.stopTime = nil
+    let now = Date()
+    var timer = Timer(startTime: now, stopTime: nil, tags: [])
+    timer.customProperties = manager.templateCustomProperties()
     
     do {
-        try manager.saveTimer(name: name, timer: timer)
-        print("✅ Started timer '\(name)' at \(manager.formatDate(Date()))")
+        try manager.saveTimer(name: name, timer: timer, defaultNotes: manager.templatePlaceholderNotes())
+        print("✅ Started timer '\(name)' at \(manager.formatDate(now))")
     } catch {
         print("❌ Error saving timer: \(error)")
     }
@@ -412,9 +509,14 @@ func splitTimer(name: String, newName: String?, manager: TimerManager) {
     }
     
     var newTimer = Timer(startTime: splitDate, stopTime: nil, tags: timer.tags)
+    if timer.customProperties.isEmpty {
+        newTimer.customProperties = manager.templateCustomProperties()
+    } else {
+        newTimer.customProperties = timer.customProperties
+    }
     
     do {
-        try manager.saveTimer(name: generatedName, timer: newTimer)
+        try manager.saveTimer(name: generatedName, timer: newTimer, defaultNotes: manager.templatePlaceholderNotes())
         print("✅ Split timer '\(name)' into '\(generatedName)' at \(manager.formatDate(splitDate))")
     } catch {
         print("❌ Error creating timer '\(generatedName)': \(error)")
@@ -579,7 +681,16 @@ func printUsage() {
     
     Config:
         Default directory is ~/.timer unless overridden in ~/.timer/config.json
-        Example config: { "timersDirectory": "/path/to/timers" }
+        Supported keys:
+            "timersDirectory"     Override the timers directory
+            "custom_properties"   Array or newline string inserted after tags
+            "placeholder_notes"   Notes appended after metadata for new timers
+        Example config:
+        {
+            "timersDirectory": "/path/to/timers",
+            "custom_properties": ["project: Client", "billable: true"],
+            "placeholder_notes": "## Notes\\n- Fill in details"
+        }
     
     Examples:
         timer start work

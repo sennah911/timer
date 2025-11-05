@@ -11,6 +11,7 @@ A Swift-based command-line tool for managing file-based timers stored as Markdow
 - **Duration tracking**: Automatically calculates elapsed time
 - **List view**: See all timers at a glance
 - **Split timers**: Stop a running timer and start the next one instantly
+- **Configurable templates**: Pre-fill metadata fields and notes from `~/.timer/config.json`
 
 ## Installation
 
@@ -42,6 +43,24 @@ Note: The script version requires Swift to be installed and available in your PA
 Timers are stored as Markdown files in `~/.timer/`
 
 Each timer is saved as `<name>.md` with a readable format.
+
+## Configuration
+
+You can optionally create `~/.timer/config.json` to customize defaults:
+
+- `timersDirectory`: Override where timer files are stored.
+- `custom_properties`: Array (or newline-delimited string) of front-matter lines added after `tags` for new timers. These lines are preserved on updates.
+- `placeholder_notes`: Text appended after the metadata when a timer file is first created. Existing notes are never overwritten.
+
+Example:
+
+```json
+{
+  "timersDirectory": "/Volumes/work/timers",
+  "custom_properties": ["project: Client A", "billable: true"],
+  "placeholder_notes": "## Notes\\n- Add details here"
+}
+```
 
 ## Commands
 
@@ -206,6 +225,7 @@ For `set-start` and `set-stop` commands, use ISO 8601 format:
 - You can manually edit the `.md` files in `~/.timer/` if needed
 - Running timers show their current duration when you view them
 - Use tags to categorize and filter timers for reporting
+- Configure default metadata and notes via `~/.timer/config.json` for consistent new files
 - Add free-form notes after the final `---` in each file; the CLI preserves anything you write there
 
 ## License
