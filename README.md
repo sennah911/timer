@@ -206,6 +206,7 @@ For `set-start` and `set-stop` commands, use ISO 8601 format:
 - You can manually edit the `.md` files in `~/.timer/` if needed
 - Running timers show their current duration when you view them
 - Use tags to categorize and filter timers for reporting
+- Add free-form notes after the final `---` in each file; the CLI preserves anything you write there
 
 ## License
 

@@ -87,8 +87,15 @@ class TimerManager {
     }
     
     func saveTimer(name: String, timer: Timer) throws {
-        let markdown = generateMarkdown(timer: timer, name: name)
         let path = timerPath(name: name)
+        var existingNotes: String?
+        
+        if FileManager.default.fileExists(atPath: path.path),
+           let currentContent = try? String(contentsOf: path, encoding: .utf8) {
+            existingNotes = TimerManager.extractNotes(from: currentContent)
+        }
+        
+        let markdown = generateMarkdown(timer: timer, name: name, notes: existingNotes)
         try markdown.write(to: path, atomically: true, encoding: .utf8)
     }
     
@@ -171,7 +178,7 @@ class TimerManager {
         return timer
     }
     
-    func generateMarkdown(timer: Timer, name: String) -> String {
+    func generateMarkdown(timer: Timer, name: String, notes: String?) -> String {
         var lines: [String] = ["---"]
         
         if let start = timer.startTime {
@@ -198,7 +205,14 @@ class TimerManager {
         lines.append("---")
         lines.append("")
         
-        return lines.joined(separator: "\n")
+        var result = lines.joined(separator: "\n")
+        if let notes = notes, !notes.isEmpty {
+            result.append(notes)
+        }
+        if !result.hasSuffix("\n") {
+            result.append("\n")
+        }
+        return result
     }
     
     func parseDate(_ string: String) -> Date? {
@@ -295,6 +309,25 @@ class TimerManager {
             return nil
         }
         return Int(suffix)
+    }
+    
+    private static func extractNotes(from content: String) -> String? {
+        guard content.hasPrefix("---") else { return nil }
+        
+        if let closingRange = content.range(of: "\n---\n") {
+            let notesStart = closingRange.upperBound
+            let notes = content[notesStart...]
+            return notes.isEmpty ? nil : String(notes)
+        }
+        
+        if let closingRange = content.range(of: "\n---", options: .backwards) {
+            let after = closingRange.upperBound
+            if after >= content.endIndex { return nil }
+            let notes = content[after...]
+            return notes.isEmpty ? nil : String(notes)
+        }
+        
+        return nil
     }
 }
 
