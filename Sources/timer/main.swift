@@ -18,15 +18,56 @@ struct Timer: Codable {
     }
 }
 
+struct TimerConfig: Codable {
+    var timersDirectory: String?
+    
+    static func load(fileManager: FileManager = .default) -> TimerConfig? {
+        let configDirectory = fileManager.homeDirectoryForCurrentUser
+            .appendingPathComponent(".timer")
+        let configURL = configDirectory.appendingPathComponent("config.json")
+        
+        guard fileManager.fileExists(atPath: configURL.path),
+              let data = try? Data(contentsOf: configURL) else {
+            return nil
+        }
+        
+        let decoder = JSONDecoder()
+        return try? decoder.decode(TimerConfig.self, from: data)
+    }
+    
+    func resolvedTimersDirectory(fileManager: FileManager = .default) -> URL? {
+        guard let rawPath = timersDirectory?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawPath.isEmpty else {
+            return nil
+        }
+        let base = fileManager.homeDirectoryForCurrentUser
+        return resolveDirectoryPath(rawPath, relativeTo: base)
+    }
+}
+
+func resolveDirectoryPath(_ path: String, relativeTo base: URL) -> URL {
+    let expanded = (path as NSString).expandingTildeInPath
+    if expanded.hasPrefix("/") {
+        return URL(fileURLWithPath: expanded, isDirectory: true).standardizedFileURL
+    } else {
+        return URL(fileURLWithPath: expanded, isDirectory: true, relativeTo: base).standardizedFileURL
+    }
+}
+
 // MARK: - Timer Manager
 
 class TimerManager {
     let timersDirectory: URL
     
-    init() {
+    init(directoryOverride: URL? = nil) {
         let fileManager = FileManager.default
         let homeDirectory = fileManager.homeDirectoryForCurrentUser
-        timersDirectory = homeDirectory.appendingPathComponent(".timers")
+        
+        let configDirectory = TimerConfig.load(fileManager: fileManager)?
+            .resolvedTimersDirectory(fileManager: fileManager)
+        let resolvedDirectory = directoryOverride ?? configDirectory ?? homeDirectory.appendingPathComponent(".timer")
+        timersDirectory = resolvedDirectory.standardizedFileURL
         
         // Create timers directory if it doesn't exist
         try? fileManager.createDirectory(at: timersDirectory, withIntermediateDirectories: true)
@@ -175,14 +216,14 @@ class TimerManager {
         
         let simple = DateFormatter()
         simple.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        simple.timeZone = TimeZone(secondsFromGMT: 0)
+        simple.timeZone = .current
         return simple.date(from: string)
     }
     
     func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.timeZone = .current
         return formatter.string(from: date)
     }
     
@@ -402,15 +443,22 @@ func printUsage() {
     Timer - A command-line timer tool
     
     Usage:
-        timer start <name>                    Start a timer
-        timer stop <name>                     Stop a running timer
-        timer tag <name> <tag>                Add a tag to a timer
-        timer remove-tag <name> <tag>         Remove a tag from a timer
-        timer set-start <name> <ISO8601>      Set the start time
-        timer set-stop <name> <ISO8601>       Set the stop time
-        timer show <name>                     Show timer details
-        timer list                            List all timers
-        timer help                            Show this help message
+        timer [--directory <path>] start <name>               Start a timer
+        timer [--directory <path>] stop <name>                Stop a running timer
+        timer [--directory <path>] tag <name> <tag>           Add a tag to a timer
+        timer [--directory <path>] remove-tag <name> <tag>    Remove a tag from a timer
+        timer [--directory <path>] set-start <name> <ISO8601> Set the start time
+        timer [--directory <path>] set-stop <name> <ISO8601>  Set the stop time
+        timer [--directory <path>] show <name>                Show timer details
+        timer [--directory <path>] list                       List all timers
+        timer help                                            Show this help message
+    
+    Global options:
+        -d, --directory <path>            Override the timers directory for this command
+    
+    Config:
+        Default directory is ~/.timer unless overridden in ~/.timer/config.json
+        Example config: { "timersDirectory": "/path/to/timers" }
     
     Examples:
         timer start work
@@ -420,71 +468,98 @@ func printUsage() {
         timer set-start work 2025-11-04T09:00:00Z
         timer set-stop work 2025-11-04T17:00:00Z
     
-    Timers are stored as Markdown files in ~/.timers/
+    Timers are stored as Markdown files in ~/.timer/
     """)
 }
 
 // MARK: - Main
 
-let args = CommandLine.arguments
-let manager = TimerManager()
+let rawArgs = CommandLine.arguments
+var arguments = Array(rawArgs.dropFirst())
 
-guard args.count > 1 else {
+let workingDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+var directoryOverride: URL?
+var cleanedArguments: [String] = []
+
+var index = 0
+while index < arguments.count {
+    let argument = arguments[index]
+    if argument == "--directory" || argument == "-d" {
+        let valueIndex = index + 1
+        guard valueIndex < arguments.count else {
+            print("❌ --directory requires a path argument")
+            exit(1)
+        }
+        
+        let path = arguments[valueIndex]
+        directoryOverride = resolveDirectoryPath(path, relativeTo: workingDirectory)
+        index += 2
+        continue
+    }
+    
+    cleanedArguments.append(argument)
+    index += 1
+}
+
+guard let commandRaw = cleanedArguments.first else {
     printUsage()
     exit(0)
 }
 
-let command = args[1].lowercased()
+let command = commandRaw.lowercased()
+var remainingArguments = Array(cleanedArguments.dropFirst())
+
+let manager = TimerManager(directoryOverride: directoryOverride)
 
 switch command {
 case "start":
-    guard args.count >= 3 else {
-        print("❌ Usage: timer start <name>")
+    guard let name = remainingArguments.first else {
+        print("❌ Usage: timer [--directory <path>] start <name>")
         exit(1)
     }
-    startTimer(name: args[2], manager: manager)
+    startTimer(name: name, manager: manager)
     
 case "stop":
-    guard args.count >= 3 else {
-        print("❌ Usage: timer stop <name>")
+    guard let name = remainingArguments.first else {
+        print("❌ Usage: timer [--directory <path>] stop <name>")
         exit(1)
     }
-    stopTimer(name: args[2], manager: manager)
+    stopTimer(name: name, manager: manager)
     
 case "tag":
-    guard args.count >= 4 else {
-        print("❌ Usage: timer tag <name> <tag>")
+    guard remainingArguments.count >= 2 else {
+        print("❌ Usage: timer [--directory <path>] tag <name> <tag>")
         exit(1)
     }
-    tagTimer(name: args[2], tag: args[3], manager: manager)
+    tagTimer(name: remainingArguments[0], tag: remainingArguments[1], manager: manager)
     
 case "remove-tag":
-    guard args.count >= 4 else {
-        print("❌ Usage: timer remove-tag <name> <tag>")
+    guard remainingArguments.count >= 2 else {
+        print("❌ Usage: timer [--directory <path>] remove-tag <name> <tag>")
         exit(1)
     }
-    removeTag(name: args[2], tag: args[3], manager: manager)
+    removeTag(name: remainingArguments[0], tag: remainingArguments[1], manager: manager)
     
 case "set-start":
-    guard args.count >= 4 else {
-        print("❌ Usage: timer set-start <name> <ISO8601-datetime>")
+    guard remainingArguments.count >= 2 else {
+        print("❌ Usage: timer [--directory <path>] set-start <name> <ISO8601-datetime>")
         exit(1)
     }
-    setStart(name: args[2], dateString: args[3], manager: manager)
+    setStart(name: remainingArguments[0], dateString: remainingArguments[1], manager: manager)
     
 case "set-stop":
-    guard args.count >= 4 else {
-        print("❌ Usage: timer set-stop <name> <ISO8601-datetime>")
+    guard remainingArguments.count >= 2 else {
+        print("❌ Usage: timer [--directory <path>] set-stop <name> <ISO8601-datetime>")
         exit(1)
     }
-    setStop(name: args[2], dateString: args[3], manager: manager)
+    setStop(name: remainingArguments[0], dateString: remainingArguments[1], manager: manager)
     
 case "show":
-    guard args.count >= 3 else {
-        print("❌ Usage: timer show <name>")
+    guard let name = remainingArguments.first else {
+        print("❌ Usage: timer [--directory <path>] show <name>")
         exit(1)
     }
-    showTimer(name: args[2], manager: manager)
+    showTimer(name: name, manager: manager)
     
 case "list":
     listTimers(manager: manager)

@@ -38,7 +38,7 @@ Note: The script version requires Swift to be installed and available in your PA
 
 ## Storage Location
 
-Timers are stored as Markdown files in `~/.timers/`
+Timers are stored as Markdown files in `~/.timer/`
 
 Each timer is saved as `<name>.md` with a readable format.
 
@@ -190,7 +190,7 @@ For `set-start` and `set-stop` commands, use ISO 8601 format:
 ## Tips
 
 - Timer names can be anything without spaces (use hyphens or underscores)
-- You can manually edit the `.md` files in `~/.timers/` if needed
+- You can manually edit the `.md` files in `~/.timer/` if needed
 - Running timers show their current duration when you view them
 - Use tags to categorize and filter timers for reporting
 
