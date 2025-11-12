@@ -43,6 +43,7 @@ struct TimerDashboardView: View {
                     Button("Refresh (updates elapsed times)") {
                         timerVM.refresh()
                     }
+                    .border(.brightBlue)
                     
                     Text("|")
                     
@@ -50,6 +51,7 @@ struct TimerDashboardView: View {
                         Button(showStoppedTimers ? "Hide stopped timers" : "Show stopped timers (\(stoppedCount))") {
                             showStoppedTimers.toggle()
                         }
+                        .border(.brightBlue)
                     }
                 }
                 
@@ -77,9 +79,9 @@ struct TimerDashboardView: View {
             TextField(placeholder: "Type a name and press Enter") { value in
                 createTimer(named: value)
             }
+            .border(Color.gray)
         }
         .padding(1)
-        .border(Color.gray)
         .padding(.bottom, 1)
     }
     
@@ -96,13 +98,16 @@ struct TimerDashboardView: View {
                     Button("Use suggestion") {
                         confirmCreateTimer(with: duplicateSuggestedName)
                     }
+                    .border(.brightBlue)
                     Button("Cancel") {
                         cancelDuplicatePrompt()
                     }
+                    .border(.brightBlue)
                 }
                 TextField(placeholder: "Or type a different name, then Enter") { value in
                     confirmCreateTimer(with: value)
                 }
+                .border(Color.gray)
             }
             .padding(1)
             .border(Color.gray)

@@ -90,25 +90,30 @@ private struct TimerPickerRow: View {
                         rowMessage = "Stopped timer."
                         onAction()
                     }
-                    
+                    .border(.brightBlue)
+
                     Button(isSplitExpanded ? "Cancel Split" : "Split") {
                         toggleSplit()
                     }
+                    .border(.brightBlue)
                 } else {
                     Button("Archive") {
                         archiveTimer(name: timer.name, manager: manager, silent: true)
                         rowMessage = "Archived timer."
                         onAction()
                     }
+                    .border(.brightBlue)
                 }
                 
                 Button(isAddingTag ? "Cancel Tag" : "Add Tag") {
                     toggleAddTag()
                 }
-                
+                .border(.brightBlue)
+
                 Button(isRenaming ? "Cancel Rename" : "Rename") {
                     toggleRename()
                 }
+                .border(.brightBlue)
             }
             
             if isSplitExpanded {
@@ -119,10 +124,12 @@ private struct TimerPickerRow: View {
                         Button("Use suggestion") {
                             performSplit(named: suggestedSplitName)
                         }
-                        
+                        .border(.brightBlue)
+
                         TextField(placeholder: "Or type a name, then Enter") { value in
                             performSplit(named: value)
                         }
+                        .border(Color.gray)
                     }
                 }
             }
@@ -135,9 +142,11 @@ private struct TimerPickerRow: View {
                         Button("Use suggestion") {
                             confirmRename(named: renameSuggestedName)
                         }
+                        .border(.brightBlue)
                         TextField(placeholder: "Or type a new name, then Enter") { value in
                             confirmRename(named: value)
                         }
+                        .border(Color.gray)
                     }
                 }
             }
@@ -147,6 +156,7 @@ private struct TimerPickerRow: View {
                     TextField(placeholder: "Enter tag, then Enter") { value in
                         confirmAddTag(value)
                     }
+                    .border(Color.gray)
                 }
             }
             
