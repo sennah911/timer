@@ -52,6 +52,9 @@ private struct TimerPickerRow: View {
     @State private var isSplitExpanded = false
     @State private var rowMessage: String?
     @State private var suggestedSplitName: String = ""
+    @State private var isAddingTag = false
+    @State private var isRenaming = false
+    @State private var renameSuggestedName: String = ""
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -60,7 +63,7 @@ private struct TimerPickerRow: View {
                     .foregroundColor(timer.isRunning ? .green : .red)
                     .bold()
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(timer.name)
+                    Text("\(timer.name) \(formattedTags)")
                         .bold()
                     Text(timer.statusDescription)
                         .foregroundColor(.gray)
@@ -88,7 +91,7 @@ private struct TimerPickerRow: View {
                         onAction()
                     }
                     
-                    Button(isSplitExpanded ? "Cancel" : "Split") {
+                    Button(isSplitExpanded ? "Cancel Split" : "Split") {
                         toggleSplit()
                     }
                 } else {
@@ -97,6 +100,14 @@ private struct TimerPickerRow: View {
                         rowMessage = "Archived timer."
                         onAction()
                     }
+                }
+                
+                Button(isAddingTag ? "Cancel Tag" : "Add Tag") {
+                    toggleAddTag()
+                }
+                
+                Button(isRenaming ? "Cancel Rename" : "Rename") {
+                    toggleRename()
                 }
             }
             
@@ -112,6 +123,29 @@ private struct TimerPickerRow: View {
                         TextField(placeholder: "Or type a name, then Enter") { value in
                             performSplit(named: value)
                         }
+                    }
+                }
+            }
+            
+            if isRenaming {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Rename Suggested: \(renameSuggestedName)")
+                        .foregroundColor(.gray)
+                    HStack(spacing: 1) {
+                        Button("Use suggestion") {
+                            confirmRename(named: renameSuggestedName)
+                        }
+                        TextField(placeholder: "Or type a new name, then Enter") { value in
+                            confirmRename(named: value)
+                        }
+                    }
+                }
+            }
+            
+            if isAddingTag {
+                HStack(spacing: 1) {
+                    TextField(placeholder: "Enter tag, then Enter") { value in
+                        confirmAddTag(value)
                     }
                 }
             }
@@ -150,5 +184,55 @@ private struct TimerPickerRow: View {
         rowMessage = "Split timer into \(providedName ?? suggestedSplitName)."
         isSplitExpanded = false
         onAction()
+    }
+    
+    private func toggleAddTag() {
+        if isAddingTag {
+            isAddingTag = false
+        } else {
+            isAddingTag = true
+        }
+    }
+    
+    private func confirmAddTag(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            rowMessage = "Enter a tag."
+            return
+        }
+        if timer.tags.contains(trimmed) {
+            rowMessage = "Tag '\(trimmed)' already exists."
+            return
+        }
+        tagTimer(name: timer.name, tag: trimmed, manager: manager, silent: true)
+        rowMessage = "Added tag '\(trimmed)'."
+        isAddingTag = false
+        onAction()
+    }
+    
+    private func toggleRename() {
+        if isRenaming {
+            isRenaming = false
+        } else {
+            renameSuggestedName = manager.nextSplitName(from: timer.name)
+            isRenaming = true
+        }
+    }
+    
+    private func confirmRename(named input: String) {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            rowMessage = "Enter a new name."
+            return
+        }
+        renameTimer(name: timer.name, newName: trimmed, manager: manager, silent: true)
+        rowMessage = "Renamed timer to \(trimmed)."
+        isRenaming = false
+        onAction()
+    }
+    
+    private var formattedTags: String {
+        if timer.tags.isEmpty { return "[]" }
+        return "[\(timer.tags.joined(separator: ", "))]"
     }
 }

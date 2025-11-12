@@ -10,6 +10,7 @@ struct TimerDashboardEntry: Identifiable, Equatable {
     let stopText: String
     let startTime: Date?
     let stopTime: Date?
+    let tags: [String]
     var id: String { name }
     
     func updatingDurationText(_ newText: String) -> TimerDashboardEntry {
@@ -22,7 +23,8 @@ struct TimerDashboardEntry: Identifiable, Equatable {
             startText: startText,
             stopText: stopText,
             startTime: startTime,
-            stopTime: stopTime)
+            stopTime: stopTime,
+            tags: tags)
     }
 }
 
@@ -55,6 +57,7 @@ func makeDashboardEntries(manager: TimerManager) -> [TimerDashboardEntry] {
             startText: startText,
             stopText: stopText,
             startTime: timer.startTime,
-            stopTime: timer.stopTime)
+            stopTime: timer.stopTime,
+            tags: timer.tags)
     }
 }

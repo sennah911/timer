@@ -136,6 +136,8 @@ class TimerManager {
     private let defaultPlaceholderNotes: String?
     enum TimerManagerError: Error {
         case timerNotFound(String)
+        case timerAlreadyExists(String)
+        case invalidName(String)
     }
     
     init(directoryOverride: URL? = nil) {
@@ -454,6 +456,30 @@ class TimerManager {
         try fileManager.moveItem(at: sourceURL, to: destinationURL)
         return destinationURL
     }
+    
+    func renameTimerFile(from oldName: String, to newName: String) throws -> URL {
+        let trimmedNewName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedNewName.isEmpty else {
+            throw TimerManagerError.invalidName(newName)
+        }
+        
+        let fileManager = FileManager.default
+        let sourceURL = timerPath(name: oldName)
+        guard fileManager.fileExists(atPath: sourceURL.path) else {
+            throw TimerManagerError.timerNotFound(oldName)
+        }
+        
+        let destinationURL = timerPath(name: trimmedNewName)
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            if sourceURL.standardizedFileURL == destinationURL.standardizedFileURL {
+                return destinationURL
+            }
+            throw TimerManagerError.timerAlreadyExists(trimmedNewName)
+        }
+        
+        try fileManager.moveItem(at: sourceURL, to: destinationURL)
+        return destinationURL
+    }
 }
 
 // MARK: - Commands
@@ -585,9 +611,15 @@ func archiveTimer(name: String, manager: TimerManager, silent: Bool = false) {
         if !silent {
             print("📦 Archived timer '\(name)' to \(destination.path)")
         }
-    } catch TimerManager.TimerManagerError.timerNotFound {
-        if !silent {
+    } catch let error as TimerManager.TimerManagerError {
+        if silent { return }
+        switch error {
+        case .timerNotFound:
             print("❌ Timer '\(name)' not found!")
+        case .timerAlreadyExists:
+            print("⚠️  Destination already exists for '\(name)'.")
+        case .invalidName:
+            print("❌ Invalid archive name for '\(name)'.")
         }
     } catch {
         if !silent {
@@ -596,9 +628,34 @@ func archiveTimer(name: String, manager: TimerManager, silent: Bool = false) {
     }
 }
 
-func tagTimer(name: String, tag: String, manager: TimerManager) {
+func renameTimer(name: String, newName: String, manager: TimerManager, silent: Bool = false) {
+    do {
+        let destination = try manager.renameTimerFile(from: name, to: newName)
+        if !silent {
+            print("✏️  Renamed timer '\(name)' to '\(destination.deletingPathExtension().lastPathComponent)'")
+        }
+    } catch let error as TimerManager.TimerManagerError {
+        if silent { return }
+        switch error {
+        case .timerNotFound:
+            print("❌ Timer '\(name)' not found!")
+        case .timerAlreadyExists(let conflict):
+            print("⚠️  Timer '\(conflict)' already exists.")
+        case .invalidName:
+            print("❌ Invalid name provided.")
+        }
+    } catch {
+        if !silent {
+            print("❌ Failed to rename timer '\(name)': \(error)")
+        }
+    }
+}
+
+func tagTimer(name: String, tag: String, manager: TimerManager, silent: Bool = false) {
     guard var timer = manager.loadTimer(name: name) else {
-        print("❌ Timer '\(name)' not found!")
+        if !silent {
+            print("❌ Timer '\(name)' not found!")
+        }
         return
     }
     
@@ -606,12 +663,18 @@ func tagTimer(name: String, tag: String, manager: TimerManager) {
         timer.tags.append(tag)
         do {
             try manager.saveTimer(name: name, timer: timer)
-            print("✅ Added tag '\(tag)' to timer '\(name)'")
+            if !silent {
+                print("✅ Added tag '\(tag)' to timer '\(name)'")
+            }
         } catch {
-            print("❌ Error saving timer: \(error)")
+            if !silent {
+                print("❌ Error saving timer: \(error)")
+            }
         }
     } else {
-        print("⚠️  Tag '\(tag)' already exists on timer '\(name)'")
+        if !silent {
+            print("⚠️  Tag '\(tag)' already exists on timer '\(name)'")
+        }
     }
 }
 
@@ -753,6 +816,7 @@ func printUsage() {
         timer [--directory <path>] split <name> [new_name]    Stop one timer and start another
         timer [--directory <path>] tag <name> <tag>           Add a tag to a timer
         timer [--directory <path>] remove-tag <name> <tag>    Remove a tag from a timer
+        timer [--directory <path>] rename <old> <new>         Rename a timer file
         timer [--directory <path>] set-start <name> <ISO8601> Set the start time
         timer [--directory <path>] set-stop <name> <ISO8601>  Set the stop time
         timer [--directory <path>] show <name>                Show timer details
@@ -930,6 +994,13 @@ case "set-stop":
         exit(1)
     }
     setStop(name: remainingArguments[0], dateString: remainingArguments[1], manager: manager)
+    
+case "rename":
+    guard remainingArguments.count >= 2 else {
+        print("❌ Usage: timer [--directory <path>] rename <old_name> <new_name>")
+        exit(1)
+    }
+    renameTimer(name: remainingArguments[0], newName: remainingArguments[1], manager: manager)
     
 case "show":
     guard let name = remainingArguments.first else {
