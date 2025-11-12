@@ -1,4 +1,5 @@
 import Foundation
+import SwiftTUI
 
 // MARK: - Models
 
@@ -461,14 +462,18 @@ func startTimer(name: String, manager: TimerManager) {
     }
 }
 
-func stopTimer(name: String, manager: TimerManager) {
+func stopTimer(name: String, manager: TimerManager, silent: Bool = false) {
     guard var timer = manager.loadTimer(name: name) else {
-        print("❌ Timer '\(name)' not found!")
+        if !silent {
+            print("❌ Timer '\(name)' not found!")
+        }
         return
     }
     
     if !timer.isRunning {
-        print("⚠️  Timer '\(name)' is not running!")
+        if !silent {
+            print("⚠️  Timer '\(name)' is not running!")
+        }
         return
     }
     
@@ -477,10 +482,14 @@ func stopTimer(name: String, manager: TimerManager) {
     do {
         try manager.saveTimer(name: name, timer: timer)
         if let duration = timer.duration {
-            print("✅ Stopped timer '\(name)' - Duration: \(manager.formatDuration(duration))")
+            if !silent {
+                print("✅ Stopped timer '\(name)' - Duration: \(manager.formatDuration(duration))")
+            }
         }
     } catch {
-        print("❌ Error saving timer: \(error)")
+        if !silent {
+            print("❌ Error saving timer: \(error)")
+        }
     }
 }
 
@@ -669,6 +678,139 @@ func listTimers(manager: TimerManager) {
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 }
 
+// MARK: - SwiftTUI Dashboard
+
+struct TimerDashboardEntry: Identifiable, Equatable {
+    let name: String
+    let statusSymbol: String
+    let statusDescription: String
+    let durationText: String
+    var id: String { name }
+}
+
+struct TimerDashboardView: View {
+    @ObservedObject var timerVM: TimerViewModel
+    var manager: TimerManager
+    @State var selectedTimer: TimerDashboardEntry? = nil
+    let directoryPath: String
+    let timers: [TimerDashboardEntry]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text("Timer Dashboard")
+                .bold()
+            Text(directoryPath)
+                .foregroundColor(.gray)
+                .padding(.bottom, 1)
+            if timers.isEmpty {
+                Text("No timers found. Run `timer start <name>` to begin.")
+                    .foregroundColor(.yellow)
+                    .padding(.top, 1)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        TimerPicker(selectedTimer: $selectedTimer, timers: timerVM.timers)
+                            .border(Color.gray)
+                        
+                        VStack {
+                            Button("Stop") {}
+                            Button("Split") {}
+                        }
+                        .border(Color.gray)
+                    }
+                    
+                    Spacer()
+                }
+            }
+            Text("Press Ctrl+C to exit, or use CLI commands for actions.")
+                .foregroundColor(.gray)
+                .padding(.top, 1)
+        }
+        .padding()
+    }
+}
+
+struct TimerPicker: View {
+    @Binding var selectedTimer: TimerDashboardEntry?
+    var timers: [TimerDashboardEntry]
+    
+    var body: some View {
+        VStack {
+            ForEach(timers) { timer in
+                    HStack(alignment: .top, spacing: 1) {
+                        Text(timer.statusSymbol)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(timer.name)
+                                .bold()
+                            Text(timer.statusDescription)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Spacer()
+                        
+                        Text(timer.durationText)
+                            .foregroundColor(.cyan)
+                        
+                        
+                        Button("Stop") {
+                            stopTimer(name: timer.name, manager: .init(), silent: true)
+                        }
+                        Button("Split") {}
+                    }
+                    .padding(.vertical, 0)
+                
+                Divider()
+            }
+        }
+    }
+}
+
+func makeDashboardEntries(manager: TimerManager) -> [TimerDashboardEntry] {
+    return manager.listTimers().compactMap { name -> TimerDashboardEntry? in
+        guard let timer = manager.loadTimer(name: name) else {
+            return nil
+        }
+        let statusSymbol: String
+        let statusDescription: String
+        if timer.isRunning {
+            statusSymbol = "⏱"
+            statusDescription = "Running"
+        } else if timer.startTime != nil {
+            statusSymbol = "⏹"
+            statusDescription = "Stopped"
+        } else {
+            statusSymbol = "○"
+            statusDescription = "Idle"
+        }
+        let durationText = timer.duration.map { manager.formatDuration($0) } ?? "—"
+        return TimerDashboardEntry(
+            name: name,
+            statusSymbol: statusSymbol,
+            statusDescription: statusDescription,
+            durationText: durationText)
+    }
+}
+
+class TimerViewModel: ObservableObject {
+    @Published var timers: [TimerDashboardEntry] = []
+    
+    init(manager: TimerManager) {
+        self._timers = .init(initialValue: makeDashboardEntries(manager: manager))
+        
+        Foundation.Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            self.timers = makeDashboardEntries(manager: manager)
+        }
+    }
+}
+
+func runDashboard(directoryOverride: URL?) -> Never {
+    let manager = TimerManager(directoryOverride: directoryOverride)
+    let entries = makeDashboardEntries(manager: manager)
+    let view = TimerDashboardView(timerVM: TimerViewModel(manager: manager), manager: manager, directoryPath: manager.timersDirectory.path, timers: entries)
+    Application(rootView: view).start()
+    exit(0)
+}
+
 func printUsage() {
     print("""
     Timer - A command-line timer tool
@@ -749,6 +891,10 @@ while index < arguments.count {
     
     cleanedArguments.append(argument)
     index += 1
+}
+
+if cleanedArguments.isEmpty {
+    runDashboard(directoryOverride: directoryOverride)
 }
 
 guard let commandRaw = cleanedArguments.first else {

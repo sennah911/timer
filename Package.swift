@@ -4,13 +4,19 @@ import PackageDescription
 let package = Package(
     name: "timer",
     platforms: [
-        .macOS(.v10_15)
+        .macOS(.v11)
     ],
     products: [
         .executable(name: "timer", targets: ["timer"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/rensbreur/SwiftTUI", branch: "main")
+    ],
     targets: [
         .executableTarget(
-            name: "timer")
+            name: "timer",
+            dependencies: [
+                .product(name: "SwiftTUI", package: "SwiftTUI")
+            ])
     ]
 )
