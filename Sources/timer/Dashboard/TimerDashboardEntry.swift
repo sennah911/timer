@@ -6,7 +6,24 @@ struct TimerDashboardEntry: Identifiable, Equatable {
     let statusDescription: String
     let durationText: String
     let isRunning: Bool
+    let startText: String
+    let stopText: String
+    let startTime: Date?
+    let stopTime: Date?
     var id: String { name }
+    
+    func updatingDurationText(_ newText: String) -> TimerDashboardEntry {
+        TimerDashboardEntry(
+            name: name,
+            statusSymbol: statusSymbol,
+            statusDescription: statusDescription,
+            durationText: newText,
+            isRunning: isRunning,
+            startText: startText,
+            stopText: stopText,
+            startTime: startTime,
+            stopTime: stopTime)
+    }
 }
 
 func makeDashboardEntries(manager: TimerManager) -> [TimerDashboardEntry] {
@@ -27,11 +44,17 @@ func makeDashboardEntries(manager: TimerManager) -> [TimerDashboardEntry] {
             statusDescription = "Idle"
         }
         let durationText = timer.duration.map { manager.formatDuration($0) } ?? "—"
+        let startText = timer.startTime.map { manager.formatDate($0) } ?? "—"
+        let stopText = timer.stopTime.map { manager.formatDate($0) } ?? "—"
         return TimerDashboardEntry(
             name: name,
             statusSymbol: statusSymbol,
             statusDescription: statusDescription,
             durationText: durationText,
-            isRunning: timer.isRunning)
+            isRunning: timer.isRunning,
+            startText: startText,
+            stopText: stopText,
+            startTime: timer.startTime,
+            stopTime: timer.stopTime)
     }
 }

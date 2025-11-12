@@ -134,6 +134,9 @@ class TimerManager {
     let config: TimerConfig
     private let defaultCustomPropertyLines: [String]
     private let defaultPlaceholderNotes: String?
+    enum TimerManagerError: Error {
+        case timerNotFound(String)
+    }
     
     init(directoryOverride: URL? = nil) {
         let fileManager = FileManager.default
@@ -436,6 +439,21 @@ class TimerManager {
         
         return nil
     }
+
+    func archiveTimerFile(name: String) throws -> URL {
+        let fileManager = FileManager.default
+        let sourceURL = timerPath(name: name)
+        guard fileManager.fileExists(atPath: sourceURL.path) else {
+            throw TimerManagerError.timerNotFound(name)
+        }
+        let archiveDirectory = timersDirectory.appendingPathComponent("archived", isDirectory: true)
+        try fileManager.createDirectory(at: archiveDirectory, withIntermediateDirectories: true)
+        let uuidSuffix = UUID().uuidString.lowercased()
+        let archivedName = "\(name)-\(uuidSuffix)"
+        let destinationURL = archiveDirectory.appendingPathComponent("\(archivedName).md")
+        try fileManager.moveItem(at: sourceURL, to: destinationURL)
+        return destinationURL
+    }
 }
 
 // MARK: - Commands
@@ -557,6 +575,23 @@ func splitTimer(name: String, newName: String?, manager: TimerManager, silent: B
     } catch {
         if !silent {
             print("❌ Error creating timer '\(generatedName)': \(error)")
+        }
+    }
+}
+
+func archiveTimer(name: String, manager: TimerManager, silent: Bool = false) {
+    do {
+        let destination = try manager.archiveTimerFile(name: name)
+        if !silent {
+            print("📦 Archived timer '\(name)' to \(destination.path)")
+        }
+    } catch TimerManager.TimerManagerError.timerNotFound {
+        if !silent {
+            print("❌ Timer '\(name)' not found!")
+        }
+    } catch {
+        if !silent {
+            print("❌ Failed to archive timer '\(name)': \(error)")
         }
     }
 }

@@ -4,22 +4,31 @@ import SwiftTUI
 class TimerViewModel: ObservableObject {
     @Published var timers: [TimerDashboardEntry] = []
     private let manager: TimerManager
-    private var refreshTimer: Foundation.Timer?
+    private var refreshTimer: DispatchSourceTimer?
     
     init(manager: TimerManager) {
         self.manager = manager
         self._timers = .init(initialValue: makeDashboardEntries(manager: manager))
-        
-        refreshTimer = Foundation.Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            self.refresh()
-        }
+        startRefreshTimer()
     }
     
     deinit {
-        refreshTimer?.invalidate()
+        refreshTimer?.cancel()
     }
     
     func refresh() {
-        timers = makeDashboardEntries(manager: manager)
+        DispatchQueue.main.async {
+            self.timers = makeDashboardEntries(manager: self.manager)
+        }
+    }
+    
+    private func startRefreshTimer() {
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .background))
+        timer.schedule(deadline: .now() + .seconds(10), repeating: .seconds(10))
+        timer.setEventHandler { [weak self] in
+            self?.refresh()
+        }
+        timer.resume()
+        refreshTimer = timer
     }
 }
