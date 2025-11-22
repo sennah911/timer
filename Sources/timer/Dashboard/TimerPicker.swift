@@ -1,4 +1,5 @@
 import SwiftTUI
+import TimerCore
 
 struct TimerPicker: View {
     var timers: [TimerDashboardEntry]

@@ -1,6 +1,6 @@
 import Foundation
 
-func setStop(name: String, dateString: String, manager: TimerManager) {
+public func setStop(name: String, dateString: String, manager: TimerManager) {
     guard var timer = manager.loadTimer(name: name) else {
         print("❌ Timer '\(name)' not found!")
         return

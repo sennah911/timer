@@ -1,7 +1,7 @@
 import Foundation
 
 /// Errors that can occur during timer management operations.
-enum TimerManagerError: Error {
+public enum TimerManagerError: Error {
     /// The specified timer file does not exist.
     ///
     /// - Parameter String: The name of the timer that was not found.

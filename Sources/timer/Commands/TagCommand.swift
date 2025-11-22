@@ -1,6 +1,6 @@
 import Foundation
 
-func tagTimer(name: String, tag: String, manager: TimerManager, silent: Bool = false) {
+public func tagTimer(name: String, tag: String, manager: TimerManager, silent: Bool = false) {
     guard var timer = manager.loadTimer(name: name) else {
         if !silent {
             print("❌ Timer '\(name)' not found!")
@@ -27,7 +27,7 @@ func tagTimer(name: String, tag: String, manager: TimerManager, silent: Bool = f
     }
 }
 
-func removeTag(name: String, tag: String, manager: TimerManager) {
+public func removeTag(name: String, tag: String, manager: TimerManager) {
     guard var timer = manager.loadTimer(name: name) else {
         print("❌ Timer '\(name)' not found!")
         return

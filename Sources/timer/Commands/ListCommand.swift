@@ -8,7 +8,7 @@ import Foundation
 /// - Duration
 ///
 /// - Parameter manager: The timer manager to use.
-func listTimers(manager: TimerManager) {
+public func listTimers(manager: TimerManager) {
     let timers = manager.listTimers()
 
     if timers.isEmpty {

@@ -1,21 +1,21 @@
 import Foundation
 
 /// The result of executing a custom button command.
-struct CustomButtonResult {
+public struct CustomButtonResult {
     /// Whether the command executed successfully (exit code 0)
-    let success: Bool
+    public let success: Bool
 
     /// The standard output from the command
-    let stdout: String
+    public let stdout: String
 
     /// The standard error from the command
-    let stderr: String
+    public let stderr: String
 
     /// The exit code of the command
-    let exitCode: Int32
+    public let exitCode: Int32
 
     /// Combined output (stdout + stderr if stderr is not empty)
-    var output: String {
+    public var output: String {
         if stderr.isEmpty {
             return stdout
         } else if stdout.isEmpty {
@@ -39,7 +39,7 @@ struct CustomButtonResult {
 ///   - timerPath: The absolute path to the timer file
 ///   - arguments: A dictionary mapping argument names to their values (e.g., ["query": "search term"])
 /// - Returns: A `CustomButtonResult` containing the command output and execution status
-func executeCustomButtonCommand(
+public func executeCustomButtonCommand(
     command: String,
     timerPath: String,
     arguments: [String: String] = [:]

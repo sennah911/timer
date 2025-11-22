@@ -12,16 +12,21 @@ import Foundation
 ///     "label": "Search for:"
 /// }
 /// ```
-struct ButtonArgument: Codable {
+public struct ButtonArgument: Codable {
     /// The placeholder name used in the command (e.g., "query" for {{query}})
-    let name: String
+    public let name: String
 
     /// The label shown in the UI for the input field
-    let label: String
+    public let label: String
+
+    public init(name: String, label: String) {
+        self.name = name
+        self.label = label
+    }
 }
 
 /// Defines where a custom button should be displayed in the TUI.
-enum ButtonPlacement: String, Codable {
+public enum ButtonPlacement: String, Codable {
     /// Button appears above all timers (global scope, no timer context)
     case global
 
@@ -53,18 +58,25 @@ enum ButtonPlacement: String, Codable {
 ///     ]
 /// }
 /// ```
-struct CustomButtonConfig: Codable {
+public struct CustomButtonConfig: Codable {
     /// The button label shown in the UI
-    let title: String
+    public let title: String
 
     /// The shell command to execute. Supports {{path}} and custom {{name}} placeholders.
-    let command: String
+    public let command: String
 
     /// Optional arguments that need to be collected from the user before executing
-    let arguments: [ButtonArgument]?
+    public let arguments: [ButtonArgument]?
 
     /// Where the button should be displayed. Defaults to `running` if not specified.
-    let placement: ButtonPlacement?
+    public let placement: ButtonPlacement?
+
+    public init(title: String, command: String, arguments: [ButtonArgument]? = nil, placement: ButtonPlacement? = nil) {
+        self.title = title
+        self.command = command
+        self.arguments = arguments
+        self.placement = placement
+    }
 }
 
 /// Configuration settings for the timer application.
@@ -89,31 +101,31 @@ struct CustomButtonConfig: Codable {
 ///     ]
 /// }
 /// ```
-struct TimerConfig: Codable {
+public struct TimerConfig: Codable {
     /// The directory where timer Markdown files are stored.
     ///
     /// This path can be absolute or relative to the user's home directory.
     /// Tilde expansion is supported (e.g., `~/Documents/timers`).
     /// If not specified, defaults to `~/.timer`.
-    var timersDirectory: String?
+    public var timersDirectory: String?
 
     /// Template text appended to new timer files as placeholder notes.
     ///
     /// This appears after the YAML frontmatter in newly created timer files.
     /// Useful for providing a consistent notes template.
-    var placeholderNotes: String?
+    public var placeholderNotes: String?
 
     /// Custom property lines to include in the YAML frontmatter of new timers.
     ///
     /// These appear after the standard fields (start_time, end_time, tags).
     /// Can be used for project-specific metadata like billable status, client names, etc.
-    var customProperties: [String]?
+    public var customProperties: [String]?
 
     /// Custom buttons to display in the TUI for each timer.
     ///
     /// These buttons can execute shell commands with placeholders for the timer path
     /// and custom arguments. Buttons appear on every timer row in the dashboard.
-    var customButtons: [CustomButtonConfig]?
+    public var customButtons: [CustomButtonConfig]?
 
     /// Coding keys for JSON serialization with snake_case mapping.
     enum CodingKeys: String, CodingKey {
@@ -123,7 +135,7 @@ struct TimerConfig: Codable {
         case customButtons = "custom_buttons"
     }
 
-    init(timersDirectory: String? = nil,
+    public init(timersDirectory: String? = nil,
          placeholderNotes: String? = nil,
          customProperties: [String]? = nil,
          customButtons: [CustomButtonConfig]? = nil) {
@@ -137,7 +149,7 @@ struct TimerConfig: Codable {
         self.customButtons = customButtons
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         timersDirectory = try container.decodeIfPresent(String.self, forKey: .timersDirectory)
         let placeholder = try container.decodeIfPresent(String.self, forKey: .placeholderNotes)
@@ -154,7 +166,7 @@ struct TimerConfig: Codable {
         customButtons = try container.decodeIfPresent([CustomButtonConfig].self, forKey: .customButtons)
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(timersDirectory, forKey: .timersDirectory)
         try container.encodeIfPresent(placeholderNotes, forKey: .placeholderNotes)
@@ -168,7 +180,7 @@ struct TimerConfig: Codable {
     ///
     /// - Parameter fileManager: The file manager to use. Defaults to `.default`.
     /// - Returns: A `TimerConfig` instance if the file exists and is valid JSON, otherwise `nil`.
-    static func load(fileManager: FileManager = .default) -> TimerConfig? {
+    public static func load(fileManager: FileManager = .default) -> TimerConfig? {
         let configDirectory = fileManager.homeDirectoryForCurrentUser
             .appendingPathComponent(".timer")
         let configURL = configDirectory.appendingPathComponent("config.json")
@@ -189,7 +201,7 @@ struct TimerConfig: Codable {
     ///
     /// - Parameter fileManager: The file manager to use. Defaults to `.default`.
     /// - Returns: The resolved directory URL, or `nil` if `timersDirectory` is not set.
-    func resolvedTimersDirectory(fileManager: FileManager = .default) -> URL? {
+    public func resolvedTimersDirectory(fileManager: FileManager = .default) -> URL? {
         guard let rawPath = timersDirectory?
             .trimmingCharacters(in: .whitespacesAndNewlines),
               !rawPath.isEmpty else {
@@ -202,7 +214,7 @@ struct TimerConfig: Codable {
     /// Returns the custom property lines as an array.
     ///
     /// - Returns: The custom properties array, or an empty array if not set.
-    func customPropertyLines() -> [String] {
+    public func customPropertyLines() -> [String] {
         return customProperties ?? []
     }
 
@@ -240,7 +252,7 @@ struct TimerConfig: Codable {
 ///   - path: The path to resolve. May contain tilde or be relative.
 ///   - base: The base URL for resolving relative paths.
 /// - Returns: The standardized absolute directory URL.
-func resolveDirectoryPath(_ path: String, relativeTo base: URL) -> URL {
+public func resolveDirectoryPath(_ path: String, relativeTo base: URL) -> URL {
     let expanded = (path as NSString).expandingTildeInPath
     if expanded.hasPrefix("/") {
         return URL(fileURLWithPath: expanded, isDirectory: true).standardizedFileURL

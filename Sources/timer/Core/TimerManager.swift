@@ -22,12 +22,12 @@ import Foundation
 ///     try manager.saveTimer(name: "project-work", timer: loadedTimer)
 /// }
 /// ```
-class TimerManager {
+public class TimerManager {
     /// The directory where timer Markdown files are stored.
-    let timersDirectory: URL
+    public let timersDirectory: URL
 
     /// The configuration loaded from `~/.timer/config.json`.
-    let config: TimerConfig
+    public let config: TimerConfig
 
     private let defaultCustomPropertyLines: [String]
     private let defaultPlaceholderNotes: String?
@@ -41,7 +41,7 @@ class TimerManager {
     /// 4. Create the timers directory if it doesn't exist
     ///
     /// - Parameter directoryOverride: An optional directory URL to use instead of the configured directory.
-    init(directoryOverride: URL? = nil) {
+    public init(directoryOverride: URL? = nil) {
         let fileManager = FileManager.default
         let homeDirectory = fileManager.homeDirectoryForCurrentUser
 
@@ -62,14 +62,14 @@ class TimerManager {
     /// Returns the default custom property lines from the configuration.
     ///
     /// - Returns: An array of custom property lines to include in new timer files.
-    func templateCustomProperties() -> [String] {
+    public func templateCustomProperties() -> [String] {
         return defaultCustomPropertyLines
     }
 
     /// Returns the placeholder notes template from the configuration.
     ///
     /// - Returns: The placeholder notes string, or `nil` if not configured.
-    func templatePlaceholderNotes() -> String? {
+    public func templatePlaceholderNotes() -> String? {
         return defaultPlaceholderNotes
     }
 
@@ -77,7 +77,7 @@ class TimerManager {
     ///
     /// - Parameter name: The name of the timer (without `.md` extension).
     /// - Returns: The full file URL for the timer's Markdown file.
-    func timerPath(name: String) -> URL {
+    public func timerPath(name: String) -> URL {
         return timersDirectory.appendingPathComponent("\(name).md")
     }
 
@@ -87,7 +87,7 @@ class TimerManager {
     ///
     /// - Parameter path: The file path URL to validate.
     /// - Returns: `true` if the path is within the timers directory, `false` otherwise.
-    func validateTimerPath(_ path: URL) -> Bool {
+    public func validateTimerPath(_ path: URL) -> Bool {
         let standardizedPath = path.standardizedFileURL.resolvingSymlinksInPath()
         let standardizedTimersDir = timersDirectory.standardizedFileURL.resolvingSymlinksInPath()
 
@@ -101,7 +101,7 @@ class TimerManager {
     ///
     /// - Parameter name: The name of the timer to load.
     /// - Returns: The parsed `Timer` object, or `nil` if the file doesn't exist or can't be parsed.
-    func loadTimer(name: String) -> Timer? {
+    public func loadTimer(name: String) -> Timer? {
         let path = timerPath(name: name)
         guard let content = try? String(contentsOf: path, encoding: .utf8) else {
             return nil
@@ -120,7 +120,7 @@ class TimerManager {
     ///   - timer: The timer object to save.
     ///   - defaultNotes: Optional notes to use for new files. Defaults to `nil`.
     /// - Throws: `TimerManagerError` or file system errors if saving fails.
-    func saveTimer(name: String, timer: Timer, defaultNotes: String? = nil) throws {
+    public func saveTimer(name: String, timer: Timer, defaultNotes: String? = nil) throws {
         let path = timerPath(name: name)
         let fileExists = FileManager.default.fileExists(atPath: path.path)
         var existingNotes: String?
@@ -153,7 +153,7 @@ class TimerManager {
     ///
     /// - Parameter content: The Markdown file content with YAML frontmatter.
     /// - Returns: A `Timer` object parsed from the frontmatter.
-    func parseMarkdown(_ content: String) -> Timer {
+    public func parseMarkdown(_ content: String) -> Timer {
         var timer = Timer(startTime: nil, stopTime: nil, tags: [])
 
         let lines = content.components(separatedBy: .newlines)
@@ -244,7 +244,7 @@ class TimerManager {
     ///   - name: The name of the timer (currently unused in output).
     ///   - notes: Optional notes to append after the frontmatter.
     /// - Returns: The complete Markdown file content as a string.
-    func generateMarkdown(timer: Timer, name: String, notes: String?) -> String {
+    public func generateMarkdown(timer: Timer, name: String, notes: String?) -> String {
         var lines: [String] = ["---"]
 
         if let start = timer.startTime {
@@ -296,7 +296,7 @@ class TimerManager {
     ///
     /// - Parameter string: The date string to parse.
     /// - Returns: A `Date` object if parsing succeeds, otherwise `nil`.
-    func parseDate(_ string: String) -> Date? {
+    public func parseDate(_ string: String) -> Date? {
         let isoWithFraction = ISO8601DateFormatter()
         isoWithFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = isoWithFraction.date(from: string) {
@@ -321,7 +321,7 @@ class TimerManager {
     ///
     /// - Parameter date: The date to format.
     /// - Returns: The formatted date string (e.g., `2025-11-16T10:30:00`).
-    func formatDate(_ date: Date) -> String {
+    public func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         formatter.timeZone = .current
@@ -337,7 +337,7 @@ class TimerManager {
     ///
     /// - Parameter duration: The time interval in seconds.
     /// - Returns: A formatted duration string.
-    func formatDuration(_ duration: TimeInterval) -> String {
+    public func formatDuration(_ duration: TimeInterval) -> String {
         let hours = Int(duration) / 3600
         let minutes = Int(duration) / 60 % 60
         let seconds = Int(duration) % 60
@@ -357,7 +357,7 @@ class TimerManager {
     /// (without the `.md` extension) in sorted order.
     ///
     /// - Returns: An array of timer names, sorted alphabetically.
-    func listTimers() -> [String] {
+    public func listTimers() -> [String] {
         let fileManager = FileManager.default
         guard let files = try? fileManager.contentsOfDirectory(at: timersDirectory, includingPropertiesForKeys: nil) else {
             return []
@@ -375,7 +375,7 @@ class TimerManager {
     /// that is currently running (has `startTime` but no `stopTime`).
     ///
     /// - Returns: The name of the first running timer, or `nil` if no timers are running.
-    func firstRunningTimerName() -> String? {
+    public func firstRunningTimerName() -> String? {
         for name in listTimers() {
             if let timer = loadTimer(name: name), timer.isRunning {
                 return name
@@ -394,7 +394,7 @@ class TimerManager {
     ///
     /// - Parameter currentName: The name of the timer being split.
     /// - Returns: The next available split name.
-    func nextSplitName(from currentName: String) -> String {
+    public func nextSplitName(from currentName: String) -> String {
         let base = TimerManager.baseNameForSplit(currentName)
         var maxSuffix = 0
 
@@ -465,7 +465,7 @@ class TimerManager {
     /// - Parameter name: The name of the timer to archive.
     /// - Returns: The URL of the archived file.
     /// - Throws: `TimerManagerError.timerNotFound` if the timer doesn't exist.
-    func archiveTimerFile(name: String) throws -> URL {
+    public func archiveTimerFile(name: String) throws -> URL {
         let fileManager = FileManager.default
         let sourceURL = timerPath(name: name)
         guard fileManager.fileExists(atPath: sourceURL.path) else {
@@ -494,7 +494,7 @@ class TimerManager {
     ///   - `TimerManagerError.timerNotFound` if the source timer doesn't exist.
     ///   - `TimerManagerError.timerAlreadyExists` if a different timer with the new name already exists.
     ///   - `TimerManagerError.invalidName` if the new name is empty or whitespace-only.
-    func renameTimerFile(from oldName: String, to newName: String) throws -> URL {
+    public func renameTimerFile(from oldName: String, to newName: String) throws -> URL {
         let trimmedNewName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedNewName.isEmpty else {
             throw TimerManagerError.invalidName(newName)

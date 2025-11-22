@@ -11,7 +11,7 @@ import Foundation
 /// - Parameters:
 ///   - name: The name of the timer to display.
 ///   - manager: The timer manager to use.
-func showTimer(name: String, manager: TimerManager) {
+public func showTimer(name: String, manager: TimerManager) {
     guard let timer = manager.loadTimer(name: name) else {
         print("❌ Timer '\(name)' not found!")
         return

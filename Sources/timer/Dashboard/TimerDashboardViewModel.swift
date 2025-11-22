@@ -1,5 +1,6 @@
 import Foundation
 import SwiftTUI
+import TimerCore
 
 class TimerViewModel: ObservableObject {
     @Published var timers: [TimerDashboardEntry] = []

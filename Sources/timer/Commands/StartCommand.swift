@@ -9,7 +9,7 @@ import Foundation
 ///   - name: The name for the new timer.
 ///   - manager: The timer manager to use.
 ///   - silent: If `true`, suppresses all output. Defaults to `false`.
-func startTimer(name: String, manager: TimerManager, silent: Bool = false) {
+public func startTimer(name: String, manager: TimerManager, silent: Bool = false) {
     if let existingTimer = manager.loadTimer(name: name) {
         if existingTimer.isRunning {
             if !silent {

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftTUI
+import TimerCore
 
 func runDashboard(directoryOverride: URL?) -> Never {
     let manager = TimerManager(directoryOverride: directoryOverride)

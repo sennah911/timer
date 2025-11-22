@@ -1,19 +1,20 @@
 import Foundation
+import TimerCore
 
-struct TimerDashboardEntry: Identifiable, Equatable {
-    let name: String
-    let statusSymbol: String
-    let statusDescription: String
-    let durationText: String
-    let isRunning: Bool
-    let startText: String
-    let stopText: String
-    let startTime: Date?
-    let stopTime: Date?
-    let tags: [String]
-    var id: String { name }
-    
-    func updatingDurationText(_ newText: String) -> TimerDashboardEntry {
+public struct TimerDashboardEntry: Identifiable, Equatable {
+    public let name: String
+    public let statusSymbol: String
+    public let statusDescription: String
+    public let durationText: String
+    public let isRunning: Bool
+    public let startText: String
+    public let stopText: String
+    public let startTime: Date?
+    public let stopTime: Date?
+    public let tags: [String]
+    public var id: String { name }
+
+    public func updatingDurationText(_ newText: String) -> TimerDashboardEntry {
         TimerDashboardEntry(
             name: name,
             statusSymbol: statusSymbol,
@@ -28,7 +29,7 @@ struct TimerDashboardEntry: Identifiable, Equatable {
     }
 }
 
-func makeDashboardEntries(manager: TimerManager) -> [TimerDashboardEntry] {
+public func makeDashboardEntries(manager: TimerManager) -> [TimerDashboardEntry] {
     return manager.listTimers().compactMap { name -> TimerDashboardEntry? in
         guard let timer = manager.loadTimer(name: name) else {
             return nil

@@ -24,32 +24,32 @@ import Foundation
 ///     print("Duration: \(duration) seconds")
 /// }
 /// ```
-struct Timer: Codable {
+public struct Timer: Codable {
     /// The time when the timer was started.
     ///
     /// When `nil`, the timer has not been started yet.
-    var startTime: Date?
+    public var startTime: Date?
 
     /// The time when the timer was stopped.
     ///
     /// When `nil` and `startTime` is set, the timer is currently running.
-    var stopTime: Date?
+    public var stopTime: Date?
 
     /// An array of tags associated with this timer.
     ///
     /// Tags can be used to categorize and filter timers (e.g., "work", "personal", "project-name").
-    var tags: [String]
+    public var tags: [String]
 
     /// Custom properties stored as raw strings.
     ///
     /// These are additional metadata lines that appear in the YAML frontmatter
     /// after the standard fields. They can be used for project-specific data.
-    var customProperties: [String] = []
+    public var customProperties: [String] = []
 
     /// Whether the timer is currently running.
     ///
     /// A timer is considered running when it has a start time but no stop time.
-    var isRunning: Bool {
+    public var isRunning: Bool {
         return startTime != nil && stopTime == nil
     }
 
@@ -60,9 +60,16 @@ struct Timer: Codable {
     /// - For not-started timers: returns `nil`
     ///
     /// - Returns: The duration in seconds, or `nil` if the timer hasn't been started.
-    var duration: TimeInterval? {
+    public var duration: TimeInterval? {
         guard let start = startTime else { return nil }
         let end = stopTime ?? Date()
         return end.timeIntervalSince(start)
+    }
+
+    public init(startTime: Date? = nil, stopTime: Date? = nil, tags: [String] = [], customProperties: [String] = []) {
+        self.startTime = startTime
+        self.stopTime = stopTime
+        self.tags = tags
+        self.customProperties = customProperties
     }
 }

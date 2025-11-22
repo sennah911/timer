@@ -1,5 +1,5 @@
 import XCTest
-@testable import timer
+@testable import TimerCore
 
 final class TimerTests: XCTestCase {
     func testTimerIsRunningWhenStartedButNotStopped() {

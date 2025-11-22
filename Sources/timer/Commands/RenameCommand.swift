@@ -1,6 +1,6 @@
 import Foundation
 
-func renameTimer(name: String, newName: String, manager: TimerManager, silent: Bool = false) {
+public func renameTimer(name: String, newName: String, manager: TimerManager, silent: Bool = false) {
     do {
         let destination = try manager.renameTimerFile(from: name, to: newName)
         if !silent {

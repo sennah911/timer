@@ -1,4 +1,5 @@
 import Foundation
+import TimerCore
 
 // Parse command-line arguments
 let rawArgs = CommandLine.arguments

@@ -1,4 +1,5 @@
 import SwiftTUI
+import TimerCore
 
 struct TimerDashboardView: View {
     @ObservedObject var timerVM: TimerViewModel

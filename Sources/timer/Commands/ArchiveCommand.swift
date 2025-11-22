@@ -1,6 +1,6 @@
 import Foundation
 
-func archiveTimer(name: String, manager: TimerManager, silent: Bool = false) {
+public func archiveTimer(name: String, manager: TimerManager, silent: Bool = false) {
     do {
         let destination = try manager.archiveTimerFile(name: name)
         if !silent {
