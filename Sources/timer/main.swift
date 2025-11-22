@@ -24,4 +24,4 @@ let remainingArguments = Array(parsed.commandArguments.dropFirst())
 let manager = TimerManager(directoryOverride: parsed.directoryOverride)
 
 // Route to the appropriate command
-routeCommand(command: command, arguments: remainingArguments, manager: manager, useRunningTimer: parsed.useRunningTimer)
+routeCommand(command: command, arguments: remainingArguments, manager: manager, useRunningTimer: parsed.useRunningTimer, timerPathOverride: parsed.timerPathOverride)

@@ -180,6 +180,17 @@ Example:
 timer remove-tag work billable
 ```
 
+### Archive a Timer
+```bash
+timer archive <name>
+```
+Archives a timer by moving it to the `archived/` subdirectory with a UUID suffix. Archived timers are not shown in the list or dashboard.
+
+Example:
+```bash
+timer archive old-project
+```
+
 ### Set Custom Start Time
 ```bash
 timer set-start <name> <ISO8601-datetime>
@@ -294,6 +305,7 @@ For `set-start` and `set-stop` commands, use ISO 8601 format:
 - Configure default metadata and notes via `~/.timer/config.json` for consistent new files
 - Add free-form notes after the final `---` in each file; the CLI preserves anything you write there
 - Use `-r/--running` with stop, split, or tag to target the first running timer automatically
+- Use `-p/--timer-path` to specify timers by file path instead of name (e.g., `timer stop -p ~/Documents/timers/work.md`)
 
 ## License
 

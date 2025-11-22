@@ -81,6 +81,20 @@ class TimerManager {
         return timersDirectory.appendingPathComponent("\(name).md")
     }
 
+    /// Validates that a given file path is within the timers directory.
+    ///
+    /// This ensures that timer path overrides cannot access files outside the configured timers directory.
+    ///
+    /// - Parameter path: The file path URL to validate.
+    /// - Returns: `true` if the path is within the timers directory, `false` otherwise.
+    func validateTimerPath(_ path: URL) -> Bool {
+        let standardizedPath = path.standardizedFileURL.resolvingSymlinksInPath()
+        let standardizedTimersDir = timersDirectory.standardizedFileURL.resolvingSymlinksInPath()
+
+        // Check if path is within timers directory
+        return standardizedPath.path.hasPrefix(standardizedTimersDir.path)
+    }
+
     /// Loads a timer from disk by name.
     ///
     /// Reads the Markdown file and parses it into a `Timer` object.
