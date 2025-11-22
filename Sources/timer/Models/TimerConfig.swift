@@ -1,18 +1,92 @@
 import Foundation
 
+/// Represents an argument that a custom button command needs.
+///
+/// Arguments are prompted for via inline text fields in the TUI when the button is clicked.
+/// Each argument has a name (used as a placeholder in the command) and a label (shown in the UI).
+///
+/// ## Example
+/// ```json
+/// {
+///     "name": "query",
+///     "label": "Search for:"
+/// }
+/// ```
+struct ButtonArgument: Codable {
+    /// The placeholder name used in the command (e.g., "query" for {{query}})
+    let name: String
+
+    /// The label shown in the UI for the input field
+    let label: String
+}
+
+/// Defines where a custom button should be displayed in the TUI.
+enum ButtonPlacement: String, Codable {
+    /// Button appears above all timers (global scope, no timer context)
+    case global
+
+    /// Button appears only on running timer rows
+    case running
+
+    /// Button appears only on stopped timer rows
+    case stopped
+}
+
+/// Represents a custom button configuration for the TUI.
+///
+/// Custom buttons can appear in different locations based on the placement property:
+/// - `global`: Above all timers (no timer context, {{path}} not available)
+/// - `running`: On running timer rows only
+/// - `stopped`: On stopped timer rows only
+///
+/// Commands can include placeholders like {{path}} for the timer file path
+/// and custom {{argument}} placeholders for user inputs.
+///
+/// ## Example
+/// ```json
+/// {
+///     "title": "Search Timer",
+///     "command": "grep -i \"{{query}}\" \"{{path}}\"",
+///     "placement": "running",
+///     "arguments": [
+///         {"name": "query", "label": "Search for:"}
+///     ]
+/// }
+/// ```
+struct CustomButtonConfig: Codable {
+    /// The button label shown in the UI
+    let title: String
+
+    /// The shell command to execute. Supports {{path}} and custom {{name}} placeholders.
+    let command: String
+
+    /// Optional arguments that need to be collected from the user before executing
+    let arguments: [ButtonArgument]?
+
+    /// Where the button should be displayed. Defaults to `running` if not specified.
+    let placement: ButtonPlacement?
+}
+
 /// Configuration settings for the timer application.
 ///
 /// Configuration is stored in `~/.timer/config.json` and controls:
 /// - Where timer files are stored
 /// - Default custom properties for new timers
 /// - Placeholder notes template
+/// - Custom buttons for the TUI
 ///
 /// ## Example Configuration File
 /// ```json
 /// {
 ///     "timersDirectory": "~/Documents/timers",
 ///     "custom_properties": ["project: Client", "billable: true"],
-///     "placeholder_notes": "## Notes\n- Fill in details"
+///     "placeholder_notes": "## Notes\n- Fill in details",
+///     "custom_buttons": [
+///         {
+///             "title": "Open in VS Code",
+///             "command": "code \"{{path}}\""
+///         }
+///     ]
 /// }
 /// ```
 struct TimerConfig: Codable {
@@ -35,16 +109,24 @@ struct TimerConfig: Codable {
     /// Can be used for project-specific metadata like billable status, client names, etc.
     var customProperties: [String]?
 
+    /// Custom buttons to display in the TUI for each timer.
+    ///
+    /// These buttons can execute shell commands with placeholders for the timer path
+    /// and custom arguments. Buttons appear on every timer row in the dashboard.
+    var customButtons: [CustomButtonConfig]?
+
     /// Coding keys for JSON serialization with snake_case mapping.
     enum CodingKeys: String, CodingKey {
         case timersDirectory
         case placeholderNotes = "placeholder_notes"
         case customProperties = "custom_properties"
+        case customButtons = "custom_buttons"
     }
 
     init(timersDirectory: String? = nil,
          placeholderNotes: String? = nil,
-         customProperties: [String]? = nil) {
+         customProperties: [String]? = nil,
+         customButtons: [CustomButtonConfig]? = nil) {
         self.timersDirectory = timersDirectory
         self.placeholderNotes = TimerConfig.normalizePlaceholder(placeholderNotes)
         if let customProperties {
@@ -52,6 +134,7 @@ struct TimerConfig: Codable {
         } else {
             self.customProperties = nil
         }
+        self.customButtons = customButtons
     }
 
     init(from decoder: Decoder) throws {
@@ -67,6 +150,8 @@ struct TimerConfig: Codable {
         } else {
             customProperties = nil
         }
+
+        customButtons = try container.decodeIfPresent([CustomButtonConfig].self, forKey: .customButtons)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -76,6 +161,7 @@ struct TimerConfig: Codable {
         if let customProperties {
             try container.encode(customProperties, forKey: .customProperties)
         }
+        try container.encodeIfPresent(customButtons, forKey: .customButtons)
     }
 
     /// Loads the timer configuration from `~/.timer/config.json`.

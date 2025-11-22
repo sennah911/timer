@@ -9,7 +9,14 @@ struct TimerDashboardView: View {
     @State private var showDuplicatePrompt = false
     @State private var duplicateBaseName: String = ""
     @State private var duplicateSuggestedName: String = ""
-    
+
+    // Global button state
+    @State private var expandedGlobalButton: String? = nil
+    @State private var globalButtonInputs: [String: [String: String]] = [:]
+    @State private var globalButtonOutput: String? = nil
+    @State private var globalButtonOutputExpanded = false
+    @State private var globalOutputLinesToShow: Int = 10
+
     var body: some View {
         let timers = timerVM.timers
         let stoppedCount = timers.filter { !$0.isRunning }.count
@@ -20,8 +27,10 @@ struct TimerDashboardView: View {
             Text(directoryPath)
                 .foregroundColor(.gray)
                 .padding(.bottom, 1)
-            
-            
+
+            // Global buttons section
+            globalButtonsSection
+
             if showDuplicatePrompt {
                 duplicatePromptSection
             } else {
@@ -70,7 +79,100 @@ struct TimerDashboardView: View {
         }
         .padding()
     }
-    
+
+    @ViewBuilder
+    private var globalButtonsSection: some View {
+        let globalButtons = manager.config.customButtons?.filter { button in
+            (button.placement ?? .running) == .global
+        } ?? []
+
+        if !globalButtons.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Global Actions")
+                    .bold()
+                    .foregroundColor(.cyan)
+
+                HStack(spacing: 1) {
+                    ForEach(globalButtons, id: \.title) { buttonConfig in
+                        Button(expandedGlobalButton == buttonConfig.title ? "Cancel" : buttonConfig.title) {
+                            toggleGlobalButton(buttonConfig)
+                        }
+                        .border(.brightBlue)
+                    }
+                }
+
+                // Global button argument input section
+                if let expandedButton = expandedGlobalButton,
+                   let buttonConfig = globalButtons.first(where: { $0.title == expandedButton }),
+                   let arguments = buttonConfig.arguments,
+                   !arguments.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(arguments, id: \.name) { argument in
+                            HStack(spacing: 1) {
+                                Text("\(argument.label)")
+                                    .foregroundColor(.gray)
+                                TextField(placeholder: argument.label) { value in
+                                    updateGlobalButtonInput(buttonTitle: expandedButton, argName: argument.name, value: value)
+                                }
+                                .border(Color.gray)
+                            }
+                        }
+                        Button("Execute") {
+                            executeGlobalButton(buttonConfig)
+                        }
+                        .border(.brightBlue)
+                    }
+                }
+
+                // Global button output section
+                if globalButtonOutputExpanded, let output = globalButtonOutput {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Button("Hide Output") {
+                            globalButtonOutputExpanded = false
+                            globalOutputLinesToShow = 10
+                        }
+                        .border(.brightBlue)
+
+                        let lines = output.components(separatedBy: .newlines)
+                        let totalLines = lines.count
+                        let linesToDisplay = min(globalOutputLinesToShow, totalLines)
+
+                        ForEach(0..<linesToDisplay, id: \.self) { index in
+                            Text(lines[index])
+                                .foregroundColor(.gray)
+                        }
+
+                        if totalLines > globalOutputLinesToShow {
+                            HStack(spacing: 1) {
+                                Button("Show More (\(totalLines - globalOutputLinesToShow) more lines)") {
+                                    globalOutputLinesToShow += 10
+                                }
+                                .border(.brightBlue)
+
+                                Button("Show All") {
+                                    globalOutputLinesToShow = totalLines
+                                }
+                                .border(.brightBlue)
+                            }
+                        } else if globalOutputLinesToShow > 10 && totalLines > 10 {
+                            Button("Show Less") {
+                                globalOutputLinesToShow = 10
+                            }
+                            .border(.brightBlue)
+                        }
+
+                        Text("(\(totalLines) lines total)")
+                            .foregroundColor(.gray)
+                            .padding(.top, 0)
+                    }
+                }
+            }
+            .padding(1)
+            .border(Color.cyan)
+            .padding(.bottom, 1)
+        }
+    }
+
     @ViewBuilder
     private var newTimerSection: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -157,5 +259,75 @@ struct TimerDashboardView: View {
         showDuplicatePrompt = false
         duplicateBaseName = ""
         duplicateSuggestedName = ""
+    }
+
+    // Global button functions
+    private func toggleGlobalButton(_ buttonConfig: CustomButtonConfig) {
+        if expandedGlobalButton == buttonConfig.title {
+            // Cancel - collapse the form
+            expandedGlobalButton = nil
+            globalButtonInputs[buttonConfig.title] = nil
+        } else {
+            // Expand the form
+            if let arguments = buttonConfig.arguments, !arguments.isEmpty {
+                // Has arguments - show input form
+                expandedGlobalButton = buttonConfig.title
+                globalButtonInputs[buttonConfig.title] = [:]
+            } else {
+                // No arguments - execute immediately
+                executeGlobalButton(buttonConfig)
+            }
+        }
+    }
+
+    private func updateGlobalButtonInput(buttonTitle: String, argName: String, value: String) {
+        if globalButtonInputs[buttonTitle] == nil {
+            globalButtonInputs[buttonTitle] = [:]
+        }
+        globalButtonInputs[buttonTitle]?[argName] = value
+    }
+
+    private func executeGlobalButton(_ buttonConfig: CustomButtonConfig) {
+        // Gather argument values
+        var arguments: [String: String] = [:]
+        if let configArgs = buttonConfig.arguments {
+            for arg in configArgs {
+                if let value = globalButtonInputs[buttonConfig.title]?[arg.name] {
+                    arguments[arg.name] = value
+                } else {
+                    arguments[arg.name] = ""
+                }
+            }
+        }
+
+        // Execute the command (without timer path for global buttons)
+        let result = executeCustomButtonCommand(
+            command: buttonConfig.command,
+            timerPath: "",  // No timer path for global buttons
+            arguments: arguments
+        )
+
+        // Display result
+        if result.success {
+            if !result.output.isEmpty {
+                globalButtonOutput = result.output
+                globalButtonOutputExpanded = true
+                globalOutputLinesToShow = 10
+                newTimerMessage = "Command executed successfully."
+            } else {
+                globalButtonOutput = nil
+                globalButtonOutputExpanded = false
+                newTimerMessage = "Command executed (no output)."
+            }
+        } else {
+            globalButtonOutput = result.output
+            globalButtonOutputExpanded = true
+            globalOutputLinesToShow = 10
+            newTimerMessage = "Command failed (exit code: \(result.exitCode))."
+        }
+
+        // Clean up
+        expandedGlobalButton = nil
+        globalButtonInputs[buttonConfig.title] = nil
     }
 }

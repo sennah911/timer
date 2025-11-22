@@ -11,6 +11,8 @@ A Swift-based command-line tool for managing file-based timers stored as Markdow
 - **Duration tracking**: Automatically calculates elapsed time
 - **List view**: See all timers at a glance
 - **Split timers**: Stop a running timer and start the next one instantly
+- **Interactive TUI Dashboard**: Visual interface for managing timers
+- **Custom buttons**: Add configurable buttons in the TUI to run shell commands on timer files
 - **Configurable templates**: Pre-fill metadata fields and notes from `~/.timer/config.json`
 
 ## Installation
@@ -61,6 +63,65 @@ Example:
   "placeholder_notes": "## Notes\\n- Add details here"
 }
 ```
+
+### Custom Buttons (TUI Dashboard)
+
+You can add custom buttons to the TUI dashboard that execute shell commands. Buttons can appear in different locations based on their placement.
+
+Add a `custom_buttons` array to your config:
+
+```json
+{
+  "timersDirectory": "~/Documents/timers",
+  "custom_buttons": [
+    {
+      "title": "List All Timers",
+      "command": "timer list",
+      "placement": "global"
+    },
+    {
+      "title": "Open in VS Code",
+      "command": "code \"{{path}}\"",
+      "placement": "running"
+    },
+    {
+      "title": "Archive Timer",
+      "command": "timer archive \"{{path}}\"",
+      "placement": "stopped"
+    },
+    {
+      "title": "Search Timer",
+      "command": "grep -i \"{{query}}\" \"{{path}}\"",
+      "placement": "running",
+      "arguments": [
+        {
+          "name": "query",
+          "label": "Search for:"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Button Configuration:**
+- `title`: The button label shown in the TUI
+- `command`: The shell command to execute
+  - Use `{{path}}` to reference the timer file path (not available for global buttons)
+  - Use `{{argumentName}}` for custom arguments
+- `placement`: Where the button appears (optional, defaults to `running`)
+  - `global`: Above all timers (no timer context, `{{path}}` not available)
+  - `running`: On running timer rows only
+  - `stopped`: On stopped timer rows only
+- `arguments`: Optional array of input fields to prompt for when the button is clicked
+  - `name`: The placeholder name used in the command
+  - `label`: The text shown in the input field
+
+**How it works:**
+1. Buttons with no arguments execute immediately when clicked
+2. Buttons with arguments show inline text fields for input
+3. Command output is displayed in an expandable section (paginated for long output)
+4. Buttons are filtered by placement: global buttons appear above all timers, running/stopped buttons appear only on matching timer rows
 
 ## Commands
 
